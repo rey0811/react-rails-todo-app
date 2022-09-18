@@ -105,3 +105,35 @@ Snapshots:   0 total
 Time:        7.918 s
 Ran all test suites.
 ```
+
+## 4. Deployment
+### A. Auto deployment
+
+- Add the below environment variable in GitHub.
+  - AWS_S3_BUCKET_NAME
+  - CONTAINER_NAME
+  - ECR_REPOSITORY
+  - ECS_CLUSTER
+  - ECS_SERVICE
+  - ECS_TASK_DEFINITION
+  - IAM_ROLE_ARN
+  - NEXT_PUBLIC_BASE_URL
+  - NEXT_PUBLIC_X_API_KEY
+- Push source code to branch then github actions flow will start CICD.
+### B. Manual deployment
+#### a. Backend
+
+- Push image to ECR repository.
+  - Details is written in the [AWS official doc](https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html)
+- Go to ECS management console and select target service name and click `Update`
+- Check `Force new deployment` and Click `Next Step`. In review screen, click `Update service`
+#### b. Frontend
+
+- Run the below command. Artifacts is generated under `frontend/src/out`
+
+```
+$ docker-compose exec frontend npm run build-local
+```
+
+- Put the artifacts in S3 bucket whose name is `AWS_S3_BUCKET_NAME`
+- Delete cache in CloudFront if necessary
