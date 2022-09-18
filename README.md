@@ -30,7 +30,7 @@ make down-all
 
 ## 2. Verification
 
-### Backend
+### A. Backend
 
 Run the below command. In case you confirm API behavior on AWS environment, please include `x-api-key` and change proper domain name.
 
@@ -71,9 +71,13 @@ $ curl -H "Accept: application/json" \
 {"id":1,"title":"Test title","state":"Open","created_at":"2022-09-18T02:13:25.954Z","updated_at":"2022-09-18T02:20:11.595Z"}
 ```
 
+### B. Frontend
+
+Access to `http://localhost:3000/` and confirm you can see sample todo application.
+
 ## 3. Test
 
-### Backend
+### A. Backend
 
 ```
 $ docker-compose exec backend bundle exec rspec
@@ -81,4 +85,23 @@ $ docker-compose exec backend bundle exec rspec
 
 Finished in 0.05045 seconds (files took 1.88 seconds to load)
 2 examples, 0 failures
+```
+
+### B. Frontend
+
+```
+$ docker-compose exec frontend npm run test
+
+> src@0.1.0 test
+> jest --no-cache
+
+ PASS  __tests__/index.test.jsx (5.077 s)
+  Home
+    ✓ renders a heading (181 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        7.918 s
+Ran all test suites.
 ```
