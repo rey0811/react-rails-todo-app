@@ -6,3 +6,5 @@ ENV LANG C.UTF-8
 ENV TZ Asia/Tokyo
 
 ADD . /app
+
+RUN npm install
