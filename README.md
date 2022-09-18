@@ -1,7 +1,8 @@
 # README
 
-## 1. How to setup local environment
+## 1. Local environment setup
 
+### A. Create local environment
 - Go to a directory which has `Makefile`
 - Run below command to build and start Docker container
 ```
@@ -13,7 +14,9 @@ make up
 docker-compose exec backend bin/rails db:prepare
 ```
 
-If you want to delete all resources, please run the below command.
+### B. Delete all resources
+
+Run either of the below command.
 
 ```
 make down
@@ -25,10 +28,12 @@ or
 make down-all
 ```
 
-
 ## 2. Verification
 
 ### Backend
+
+Run the below command. In case you confirm API behavior on AWS environment, please include `x-api-key` and change proper domain name.
+
 **GET**
 
 ```
