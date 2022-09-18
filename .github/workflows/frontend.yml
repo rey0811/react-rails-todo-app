@@ -1,0 +1,63 @@
+name: Frontend CICD
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  cicd:
+    name: Frontend Test & Build & Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.17
+
+      - name: Install dependencies
+        shell: bash
+        run: npm install
+        working-directory: ./frontend/src
+
+      - name: Run Jest
+        shell: bash
+        run: npm run test
+        working-directory: ./frontend/src
+
+      - name: create env file
+        shell: bash
+        run: |
+          touch .env
+          echo NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} >> .env
+          echo NEXT_PUBLIC_X_API_KEY=${{ secrets.NEXT_PUBLIC_X_API_KEY }} >> .env
+        working-directory: ./frontend/src
+
+      - name: Run build
+        shell: bash
+        run: npm run build
+        working-directory: ./frontend/src
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ap-northeast-1
+          role-to-assume: ${{secrets.IAM_ROLE_ARN}}
+          role-duration-seconds: 900
+          role-session-name: GitHubActions-${{ github.run_id }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync ./frontend/src/out s3://${{ secrets.AWS_S3_BUCKET_NAME }}
+
+      - name: CloudFront Cache Clear
+        run: |
+          CFID=$(aws cloudfront list-distributions --query "DistributionList.Items[].{Id:Id,Origin:Origins.Items[0].DomainName}[?contains(Origin,'${{ secrets.AWS_S3_BUCKET_NAME }}.s3')] | [0].Id" | sed 's/"//g')
+          echo "aws cloudfront create-invalidation ${CFID}"
+          aws cloudfront create-invalidation --distribution-id ${CFID} --paths "/*"

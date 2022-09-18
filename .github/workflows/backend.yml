@@ -1,0 +1,110 @@
+name: Backend CICD
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: ${{secrets.ECR_REPOSITORY}}
+  ECS_SERVICE: ${{secrets.ECS_SERVICE}}
+  ECS_CLUSTER: ${{secrets.ECS_CLUSTER}}
+  ECS_TASK_DEFINITION: ${{secrets.ECS_TASK_DEFINITION}} # Specify the path of task definition json file
+  CONTAINER_NAME: ${{secrets.CONTAINER_NAME}}
+
+jobs:
+  cicd:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup docker
+        shell: bash
+        run: |
+          # bundle install
+          docker-compose run backend bundle install
+          # build image
+          docker-compose build
+          # create database
+          docker-compose run backend rake db:create
+          # migrate database
+          docker-compose run backend rake db:migrate
+        env:
+          RAILS_ENV: test
+
+      - name: Run RSpec
+        shell: bash
+        run: |
+          docker-compose run backend bundle exec rspec
+        env:
+          RAILS_ENV: test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{secrets.IAM_ROLE_ARN}}
+          role-duration-seconds: 900
+          role-session-name: GitHubActions-${{ github.run_id }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        working-directory: ./backend
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition todo-api-task --query 'taskDefinition |
+          {
+            ipcMode: ipcMode,
+            executionRoleArn: executionRoleArn,
+            containerDefinitions: containerDefinitions,
+            placementConstraints: placementConstraints,
+            memory: memory,
+            taskRoleArn: taskRoleArn,
+            family: family,
+            pidMode: pidMode,
+            requiresCompatibilities: requiresCompatibilities,
+            networkMode: networkMode,
+            cpu: cpu,
+            inferenceAccelerators: inferenceAccelerators,
+            proxyConfiguration: proxyConfiguration,
+            volumes: volumes
+          }' > task-definition.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+      - name: Force deployment
+        run: |
+          aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --force-new-deployment
