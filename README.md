@@ -107,6 +107,12 @@ Ran all test suites.
 ```
 
 ## 4. Deployment
+
+### Prerequisite
+Setup AWS environment using the below terraform code.
+
+- https://github.com/rey0811/react-rails-todo-app-terraform
+
 ### A. Auto deployment
 
 - Add the below environment variable in GitHub.
