@@ -4,14 +4,9 @@
 
 ### A. Create local environment
 - Go to a directory which has `Makefile`
-- Run below command to build and start Docker container
+- Run below command to build and start Docker container, and prepare database
 ```
 make up
-```
-- Run below commands to prepare Database
-
-```
-docker-compose exec backend bin/rails db:prepare
 ```
 
 ### B. Delete all resources

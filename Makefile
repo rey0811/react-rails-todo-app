@@ -1,5 +1,6 @@
 up:
-	docker-compose up -d --build
+	docker-compose up -d --build \
+	&& docker-compose exec backend bin/rails db:prepare
 down:
 	docker-compose down
 down-all:
